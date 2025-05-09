@@ -16,6 +16,10 @@ const fundButton = document.getElementById("fundButton") as HTMLButtonElement
 const balanceButton = document.getElementById("balanceButton") as HTMLButtonElement
 const withdrawButton = document.getElementById("withdrawButton") as HTMLButtonElement
 const ethAmountInput = document.getElementById("ethAmount") as HTMLInputElement
+const fundingAddressInput = document.getElementById("fundingAddress") as HTMLInputElement
+const getAmountByAddressButton = document.getElementById(
+  "getAmountByAddressButton"
+) as HTMLButtonElement
 
 let walletClient: WalletClient
 let publicClient: PublicClient
@@ -137,8 +141,45 @@ async function getCurrentChain(client: WalletClient): Promise<ReturnType<typeof 
   return currentChain
 }
 
+async function getAmountByAddress() {
+  let fundingAddress = fundingAddressInput.value
+  if (typeof window.ethereum !== "undefined") {
+    try {
+      walletClient = createWalletClient({
+        transport: custom(window.ethereum),
+      })
+      const [account] = await walletClient.requestAddresses()
+      const currentChain = await getCurrentChain(walletClient)
+      if (fundingAddress == "") {
+        fundingAddress = account
+      }
+      console.log(`Getting Amount for Address ${fundingAddress}...`)
+
+      console.log("Processing transaction...")
+      publicClient = createPublicClient({
+        transport: custom(window.ethereum),
+      })
+      const { request, result } = await publicClient.simulateContract({
+        address: contractAddress,
+        abi,
+        functionName: "getAddressToAmountFunded",
+        account,
+        chain: currentChain,
+        value: 0,
+        args: [fundingAddress],
+      })
+      console.log("Amount: ", formatEther(result))
+    } catch (error) {
+      console.log(error)
+    }
+  } else {
+    fundButton.innerHTML = "Please install MetaMask"
+  }
+}
+
 // Attach event listeners
 connectButton.onclick = connect
 fundButton.onclick = fund
 balanceButton.onclick = getBalance
 withdrawButton.onclick = withdraw
+getAmountByAddressButton.onclick = getAmountByAddress
